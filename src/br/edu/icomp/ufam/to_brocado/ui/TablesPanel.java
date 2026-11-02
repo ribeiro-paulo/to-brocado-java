@@ -14,7 +14,9 @@ import javax.swing.JButton;
 import javax.swing.JComboBox;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
+import javax.swing.JSpinner;
 import javax.swing.JPanel;
+import javax.swing.SpinnerNumberModel;
 import javax.swing.SwingConstants;
 
 class TablesPanel extends ScreenPanel {
@@ -28,6 +30,9 @@ class TablesPanel extends ScreenPanel {
     private final JPanel grid = new JPanel(new GridLayout(0, 4, 12, 12));
     private final JLabel detailsLabel = new JLabel();
     private final JButton occupyButton = new JButton("Ocupar mesa");
+    private final JButton newButton = new JButton("Nova mesa");
+    private final JButton editButton = new JButton("Editar mesa");
+    private final JButton removeButton = new JButton("Remover mesa");
     private RestaurantTable selectedTable;
 
     TablesPanel(RestaurantData data) {
@@ -35,6 +40,9 @@ class TablesPanel extends ScreenPanel {
         this.data = data;
 
         occupyButton.addActionListener(_ -> occupySelectedTable());
+        newButton.addActionListener(_ -> openTableForm(null));
+        editButton.addActionListener(_ -> openTableForm(selectedTable));
+        removeButton.addActionListener(_ -> removeSelectedTable());
         detailsLabel.setVerticalAlignment(SwingConstants.TOP);
 
         JPanel gridWrapper = new JPanel(new BorderLayout());
@@ -47,6 +55,12 @@ class TablesPanel extends ScreenPanel {
         details.setPreferredSize(new Dimension(280, 0));
         details.add(detailsLabel, BorderLayout.CENTER);
         details.add(occupyButton, BorderLayout.SOUTH);
+        JPanel actions = new JPanel(new GridLayout(0, 1, 0, 6));
+        actions.add(occupyButton);
+        actions.add(newButton);
+        actions.add(editButton);
+        actions.add(removeButton);
+        details.add(actions, BorderLayout.SOUTH);
 
         JPanel content = new JPanel(new BorderLayout(16, 0));
         content.add(gridWrapper, BorderLayout.CENTER);
@@ -89,6 +103,8 @@ class TablesPanel extends ScreenPanel {
         if (selectedTable == null) {
             detailsLabel.setText("<html>Selecione uma mesa para consultar a situação.</html>");
             occupyButton.setEnabled(false);
+            editButton.setEnabled(false);
+            removeButton.setEnabled(false);
             return;
         }
         List<Order> orders = data.getOrdersForTable(selectedTable);
@@ -104,6 +120,40 @@ class TablesPanel extends ScreenPanel {
                 + "Pedidos: " + orders.size() + " (" + inProgress + " em andamento)"
                 + hint + "</html>");
         occupyButton.setEnabled(!selectedTable.isOccupied());
+        editButton.setEnabled(!selectedTable.isOccupied());
+        removeButton.setEnabled(!selectedTable.isOccupied() && data.getOrdersForTable(selectedTable).isEmpty());
+    }
+
+    private void openTableForm(RestaurantTable table) {
+        JSpinner numberField = new JSpinner(new SpinnerNumberModel(table == null ? data.getTables().size() + 1 : table.getNumber(), 1, 999, 1));
+        JSpinner seatsField = new JSpinner(new SpinnerNumberModel(table == null ? 2 : table.getSeats(), 1, 99, 1));
+        JLabel errorLabel = createErrorLabel();
+        JPanel form = buildForm(errorLabel, new String[]{"Número:", "Lugares:"}, new JComponent[]{numberField, seatsField});
+        boolean confirmed = showForm(table == null ? "Nova mesa" : "Editar mesa", form, "Salvar", errorLabel, () -> {
+            int number = (Integer) numberField.getValue();
+            boolean duplicate = data.getTables().stream().anyMatch(other -> other != table && other.getNumber() == number);
+            return duplicate ? "Já existe uma mesa com esse número." : null;
+        });
+        if (!confirmed) return;
+        int number = (Integer) numberField.getValue();
+        int seats = (Integer) seatsField.getValue();
+        if (table == null) {
+            selectedTable = data.addTable(number, seats);
+            showStatus("Mesa cadastrada com sucesso.");
+        } else {
+            data.updateTable(table, number, seats);
+            showStatus("Mesa atualizada com sucesso.");
+        }
+        refresh();
+    }
+
+    private void removeSelectedTable() {
+        if (selectedTable == null || selectedTable.isOccupied() || !data.getOrdersForTable(selectedTable).isEmpty()) return;
+        if (!confirm("Deseja remover " + selectedTable + "?", "Remover")) return;
+        data.removeTable(selectedTable);
+        selectedTable = null;
+        showStatus("Mesa removida com sucesso.");
+        refresh();
     }
 
     private void occupySelectedTable() {

@@ -2,8 +2,8 @@ package br.edu.icomp.ufam.to_brocado.model;
 
 public class RestaurantTable {
 
-    private final int number;
-    private final int seats;
+    private int number;
+    private int seats;
     private TableStatus status = TableStatus.FREE;
     private Waiter waiter;
 
@@ -40,6 +40,11 @@ public class RestaurantTable {
     public void release() {
         this.waiter = null;
         this.status = TableStatus.FREE;
+    }
+
+    public void update(int number, int seats) {
+        this.number = number;
+        this.seats = seats;
     }
 
     @Override

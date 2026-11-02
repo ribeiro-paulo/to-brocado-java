@@ -66,4 +66,8 @@ public class Order {
     public void advance() {
         status = status.next();
     }
+
+    public void setStatus(OrderStatus status) {
+        this.status = status;
+    }
 }

@@ -159,8 +159,9 @@ class BillPanel extends ScreenPanel {
         if (!confirm("Fechar a conta da " + table + " e liberar a mesa?", "Fechar conta")) {
             return;
         }
-        data.closeTable(table);
-        showStatus("Conta da " + table + " fechada. A mesa foi liberada.");
+        Bill closedBill = data.closeAccount(table, serviceFeeBox.isSelected(), (Integer) peopleSpinner.getValue());
+        showStatus("Conta fechada: " + formatCurrency(closedBill.getTotal()) + " no total, "
+                + formatCurrency(closedBill.getPerPerson()) + " por pessoa. " + table + " liberada.");
         refresh();
     }
 

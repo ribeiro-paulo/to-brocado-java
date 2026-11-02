@@ -107,7 +107,7 @@ class MenuPanel extends ScreenPanel {
             data.addMenuItem(name, category, price, availableBox.isSelected());
             showStatus("Item cadastrado com sucesso.");
         } else {
-            item.update(name, category, price, availableBox.isSelected());
+            data.updateMenuItem(item, name, category, price, availableBox.isSelected());
             showStatus("Item atualizado com sucesso.");
         }
         refresh();
@@ -121,7 +121,12 @@ class MenuPanel extends ScreenPanel {
         if (!confirm("Deseja remover o item " + item.getName() + " do cardápio?", "Remover")) {
             return;
         }
-        data.removeMenuItem(item);
+        try {
+            data.removeMenuItem(item);
+        } catch (IllegalStateException exception) {
+            showMessage("O item já faz parte de pedidos e não pode ser removido.");
+            return;
+        }
         showStatus("Item removido com sucesso.");
         refresh();
     }

@@ -44,4 +44,9 @@ public class MenuItem {
         this.price = price;
         this.available = available;
     }
+
+    @Override
+    public String toString() {
+        return name + " — " + price;
+    }
 }

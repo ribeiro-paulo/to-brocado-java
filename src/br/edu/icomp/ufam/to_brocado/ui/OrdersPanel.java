@@ -4,21 +4,29 @@ import br.edu.icomp.ufam.to_brocado.data.RestaurantData;
 import br.edu.icomp.ufam.to_brocado.model.Order;
 import br.edu.icomp.ufam.to_brocado.model.OrderItem;
 import br.edu.icomp.ufam.to_brocado.model.OrderStatus;
+import br.edu.icomp.ufam.to_brocado.model.OrderItem;
+import br.edu.icomp.ufam.to_brocado.model.MenuItem;
+import br.edu.icomp.ufam.to_brocado.model.RestaurantTable;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.FlowLayout;
 import java.awt.Font;
+import java.math.BigDecimal;
 import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
 import javax.swing.JButton;
+import javax.swing.JComponent;
 import javax.swing.JComboBox;
 import javax.swing.JLabel;
+import javax.swing.JSpinner;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
 import javax.swing.SwingConstants;
+import javax.swing.SpinnerNumberModel;
+import javax.swing.JScrollPane;
 import javax.swing.Timer;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
@@ -42,6 +50,8 @@ class OrdersPanel extends ScreenPanel {
             new JComboBox<>(new String[]{FILTER_ALL, FILTER_PENDING, FILTER_LATE});
     private final JLabel summaryLabel = new JLabel();
     private final JButton advanceButton = new JButton("Avançar situação");
+    private final JButton newButton = new JButton("Novo pedido");
+    private final JButton removeButton = new JButton("Cancelar pedido");
     private List<Order> shownOrders = List.of();
 
     OrdersPanel(RestaurantData data) {
@@ -54,6 +64,8 @@ class OrdersPanel extends ScreenPanel {
         table.getSelectionModel().addListSelectionListener(_ -> updateAdvanceButton());
         filterBox.addActionListener(_ -> refresh());
         advanceButton.addActionListener(_ -> advanceSelectedOrder());
+        newButton.addActionListener(_ -> createOrder());
+        removeButton.addActionListener(_ -> removeSelectedOrder());
 
         JPanel filters = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
         filters.add(new JLabel("Exibir:"));
@@ -63,6 +75,11 @@ class OrdersPanel extends ScreenPanel {
         JPanel toolbar = new JPanel(new BorderLayout());
         toolbar.add(filters, BorderLayout.WEST);
         toolbar.add(advanceButton, BorderLayout.EAST);
+        JPanel actions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
+        actions.add(newButton);
+        actions.add(advanceButton);
+        actions.add(removeButton);
+        toolbar.add(actions, BorderLayout.EAST);
 
         JPanel content = new JPanel(new BorderLayout(0, 8));
         content.add(toolbar, BorderLayout.NORTH);
@@ -126,9 +143,38 @@ class OrdersPanel extends ScreenPanel {
         Order order = getSelectedOrder();
         boolean canAdvance = order != null && !order.getStatus().isFinal();
         advanceButton.setEnabled(canAdvance);
+        removeButton.setEnabled(order != null && !order.getStatus().isFinal());
         advanceButton.setText(canAdvance
                 ? "Avançar para: " + order.getStatus().next().getLabel()
                 : "Avançar situação");
+    }
+
+    private void createOrder() {
+        List<RestaurantTable> occupiedTables = data.getTables().stream().filter(RestaurantTable::isOccupied).toList();
+        List<MenuItem> availableItems = data.getMenuItems().stream().filter(MenuItem::isAvailable).toList();
+        if (occupiedTables.isEmpty() || availableItems.isEmpty()) {
+            showMessage("É necessário ter uma mesa ocupada e itens disponíveis no cardápio.");
+            return;
+        }
+        JComboBox<RestaurantTable> tableBox = new JComboBox<>(occupiedTables.toArray(new RestaurantTable[0]));
+        JComboBox<MenuItem> itemBox = new JComboBox<>(availableItems.toArray(new MenuItem[0]));
+        JSpinner quantityField = new JSpinner(new SpinnerNumberModel(1, 1, 99, 1));
+        JLabel errorLabel = createErrorLabel();
+        JPanel form = buildForm(errorLabel, new String[]{"Mesa:", "Item:", "Quantidade:"}, new JComponent[]{tableBox, itemBox, quantityField});
+        boolean confirmed = showForm("Novo pedido", form, "Registrar", errorLabel, () -> null);
+        if (!confirmed) return;
+        data.addOrder((RestaurantTable) tableBox.getSelectedItem(), List.of(new OrderItem((MenuItem) itemBox.getSelectedItem(), (Integer) quantityField.getValue())));
+        showStatus("Pedido registrado como pendente.");
+        refresh();
+    }
+
+    private void removeSelectedOrder() {
+        Order order = getSelectedOrder();
+        if (order == null || order.getStatus().isFinal()) return;
+        if (!confirm("Cancelar o pedido #" + order.getId() + "?", "Cancelar pedido")) return;
+        data.removeOrder(order);
+        showStatus("Pedido cancelado com sucesso.");
+        refresh();
     }
 
     private void advanceSelectedOrder() {

@@ -126,7 +126,7 @@ class WaitersPanel extends ScreenPanel {
             data.addWaiter(name, phone);
             showStatus("Garçom cadastrado com sucesso.");
         } else {
-            waiter.update(name, phone);
+            data.updateWaiter(waiter, name, phone);
             showStatus("Dados do garçom atualizados com sucesso.");
         }
         refresh();
