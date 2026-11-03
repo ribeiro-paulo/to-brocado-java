@@ -2,10 +2,14 @@ package br.edu.icomp.ufam.to_brocado.data;
 
 import br.edu.icomp.ufam.to_brocado.model.*;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.sql.SQLException;
 import java.util.*;
 
 public class RestaurantData {
+    public record WaiterReport(int waiterId, long deliveredOrders, long cancelledOrders, long closedBills,
+                               BigDecimal subtotal, BigDecimal serviceFee, BigDecimal total) { }
+
     private final RestaurantDao dao = new RestaurantDao();
     private final List<Waiter> waiters = new ArrayList<>();
     private final List<RestaurantTable> tables = new ArrayList<>();
@@ -19,6 +23,25 @@ public class RestaurantData {
         } catch (SQLException e) { throw failure("Não foi possível carregar os dados. Verifique o MySQL e a configuração JDBC.", e); }
     }
     public List<Waiter> getWaiters() { return Collections.unmodifiableList(waiters); }
+    public List<WaiterReport> getWaiterReport(LocalDate from, LocalDate through) {
+        if (from == null || through == null || through.isBefore(from)) {
+            throw new IllegalArgumentException("Informe um período válido.");
+        }
+        try {
+            Map<Integer, RestaurantDao.WaiterReportRow> report = dao.loadWaiterReport(from, through);
+            return waiters.stream().map(waiter -> {
+                RestaurantDao.WaiterReportRow row = report.get(waiter.getId());
+                if (row == null) {
+                    return new WaiterReport(waiter.getId(), 0, 0, 0,
+                            BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO);
+                }
+                return new WaiterReport(waiter.getId(), row.deliveredOrders(), row.cancelledOrders(), row.closedBills(),
+                        row.subtotal(), row.serviceFee(), row.total());
+            }).toList();
+        } catch (SQLException e) {
+            throw failure("Não foi possível gerar o relatório de garçons.", e);
+        }
+    }
     public List<Waiter> getActiveWaiters() { return waiters.stream().filter(Waiter::isActive).toList(); }
     public Waiter addWaiter(String name,String phone){try{Waiter w=new Waiter(dao.insertWaiter(name,phone),name,phone);waiters.add(w);return w;}catch(SQLException e){throw failure("Não foi possível cadastrar o garçom.",e);}}
     public void updateWaiter(Waiter w,String name,String phone){try{dao.updateWaiter(w,name,phone);w.update(name,phone);}catch(SQLException e){throw failure("Não foi possível atualizar o garçom.",e);}}

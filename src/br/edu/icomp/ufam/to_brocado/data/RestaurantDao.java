@@ -4,11 +4,53 @@ import br.edu.icomp.ufam.to_brocado.database.Database;
 import br.edu.icomp.ufam.to_brocado.model.*;
 import java.math.BigDecimal;
 import java.sql.*;
-import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.util.*;
 
 final class RestaurantDao {
     record Data(List<Waiter> waiters, List<RestaurantTable> tables, List<MenuItem> menuItems, List<Order> orders) { }
+    record WaiterReportRow(long deliveredOrders, long cancelledOrders, long closedBills,
+                           BigDecimal subtotal, BigDecimal serviceFee, BigDecimal total) { }
+
+    Map<Integer, WaiterReportRow> loadWaiterReport(LocalDate from, LocalDate through) throws SQLException {
+        Timestamp start = Timestamp.valueOf(from.atStartOfDay());
+        Timestamp endExclusive = Timestamp.valueOf(through.plusDays(1).atStartOfDay());
+        Map<Integer, WaiterReportRow> rows = new HashMap<>();
+        String billsSql = "SELECT b.waiter_id, COUNT(DISTINCT b.id) AS bill_count, "
+                + "COALESCE(SUM(b.subtotal),0) AS subtotal, COALESCE(SUM(b.service_fee),0) AS service_fee, "
+                + "COALESCE(SUM(b.total),0) AS total, COALESCE(SUM(o.delivered_count),0) AS delivered_count "
+                + "FROM bill b LEFT JOIN (SELECT bill_id, COUNT(*) AS delivered_count FROM customer_order "
+                + "WHERE status='DELIVERED' GROUP BY bill_id) o ON o.bill_id=b.id "
+                + "WHERE b.closed_at>=? AND b.closed_at<? GROUP BY b.waiter_id";
+        try (Connection c = Database.connect(); PreparedStatement p = c.prepareStatement(billsSql)) {
+            p.setTimestamp(1, start);
+            p.setTimestamp(2, endExclusive);
+            try (ResultSet r = p.executeQuery()) {
+                while (r.next()) {
+                    rows.put(Math.toIntExact(r.getLong("waiter_id")), new WaiterReportRow(
+                            r.getLong("delivered_count"), 0, r.getLong("bill_count"),
+                            r.getBigDecimal("subtotal"), r.getBigDecimal("service_fee"), r.getBigDecimal("total")));
+                }
+            }
+        }
+
+        String cancelledSql = "SELECT waiter_id, COUNT(*) AS cancelled_count FROM customer_order "
+                + "WHERE status='CANCELLED' AND cancelled_at>=? AND cancelled_at<? GROUP BY waiter_id";
+        try (Connection c = Database.connect(); PreparedStatement p = c.prepareStatement(cancelledSql)) {
+            p.setTimestamp(1, start);
+            p.setTimestamp(2, endExclusive);
+            try (ResultSet r = p.executeQuery()) {
+                while (r.next()) {
+                    int id = Math.toIntExact(r.getLong("waiter_id"));
+                    WaiterReportRow current = rows.getOrDefault(id,
+                            new WaiterReportRow(0, 0, 0, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO));
+                    rows.put(id, new WaiterReportRow(current.deliveredOrders(), r.getLong("cancelled_count"),
+                            current.closedBills(), current.subtotal(), current.serviceFee(), current.total()));
+                }
+            }
+        }
+        return rows;
+    }
 
     Data load() throws SQLException {
         List<Waiter> waiters = new ArrayList<>();
@@ -34,7 +76,7 @@ final class RestaurantDao {
                 MenuItem current = itemById.get(r.getLong("menu_item_id"));
                 MenuItem item = new MenuItem(Math.toIntExact(r.getLong("menu_item_id")), r.getString("item_name"),
                         current == null ? MenuCategory.SNACKS : current.getCategory(), r.getBigDecimal("unit_price"), false);
-                orderItems.computeIfAbsent(r.getLong("order_id"), ignored -> new ArrayList<>()).add(new OrderItem(item, r.getInt("quantity"), r.getBigDecimal("unit_price")));
+                orderItems.computeIfAbsent(r.getLong("order_id"), _ -> new ArrayList<>()).add(new OrderItem(item, r.getInt("quantity"), r.getBigDecimal("unit_price")));
             }
         }
         List<Order> orders = new ArrayList<>();
