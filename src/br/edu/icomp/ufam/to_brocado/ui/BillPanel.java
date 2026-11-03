@@ -99,7 +99,7 @@ class BillPanel extends ScreenPanel {
 
         JPanel content = new JPanel(new BorderLayout(16, 8));
         content.add(selector, BorderLayout.NORTH);
-        content.add(new JScrollPane(itemsTable), BorderLayout.CENTER);
+        content.add(createScrollPane(itemsTable), BorderLayout.CENTER);
         content.add(summary, BorderLayout.EAST);
         add(content, BorderLayout.CENTER);
 

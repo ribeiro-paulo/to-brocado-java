@@ -48,7 +48,7 @@ class MenuPanel extends ScreenPanel {
 
         JPanel content = new JPanel(new BorderLayout(0, 8));
         content.add(actions, BorderLayout.NORTH);
-        content.add(new JScrollPane(table), BorderLayout.CENTER);
+        content.add(createScrollPane(table), BorderLayout.CENTER);
         add(content, BorderLayout.CENTER);
 
         refresh();

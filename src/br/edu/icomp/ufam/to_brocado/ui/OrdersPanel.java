@@ -80,7 +80,7 @@ class OrdersPanel extends ScreenPanel {
 
         JPanel content = new JPanel(new BorderLayout(0, 8));
         content.add(toolbar, BorderLayout.NORTH);
-        content.add(new JScrollPane(table), BorderLayout.CENTER);
+        content.add(createScrollPane(table), BorderLayout.CENTER);
         add(content, BorderLayout.CENTER);
 
         new Timer(REFRESH_INTERVAL_MILLIS, _ -> refresh()).start();

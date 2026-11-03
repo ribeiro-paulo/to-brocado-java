@@ -18,6 +18,7 @@ import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JTable;
 import javax.swing.ListSelectionModel;
+import javax.swing.JScrollPane;
 import javax.swing.SwingConstants;
 import javax.swing.border.EmptyBorder;
 import javax.swing.table.DefaultTableCellRenderer;
@@ -36,12 +37,13 @@ abstract class ScreenPanel extends JPanel {
     protected ScreenPanel(String title) {
         super(new BorderLayout(0, 12));
         this.title = title;
-        setBorder(new EmptyBorder(16, 16, 16, 16));
+        setBorder(new EmptyBorder(24, 28, 20, 28));
 
         JLabel titleLabel = new JLabel(title);
-        titleLabel.setFont(titleLabel.getFont().deriveFont(Font.BOLD, 22f));
+        titleLabel.setFont(titleLabel.getFont().deriveFont(Font.BOLD, 26f));
         add(titleLabel, BorderLayout.NORTH);
         add(statusLabel, BorderLayout.SOUTH);
+        statusLabel.setBorder(new EmptyBorder(6, 0, 0, 0));
 
         addComponentListener(new ComponentAdapter() {
             @Override
@@ -131,10 +133,20 @@ abstract class ScreenPanel extends JPanel {
 
     protected static JTable createTable(DefaultTableModel model) {
         JTable table = new JTable(model);
-        table.setRowHeight(28);
+        table.setRowHeight(36);
         table.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         table.getTableHeader().setReorderingAllowed(false);
+        table.setShowVerticalLines(false);
+        table.setIntercellSpacing(new java.awt.Dimension(0, 1));
+        table.setFillsViewportHeight(true);
+        table.getTableHeader().setPreferredSize(new java.awt.Dimension(0, 40));
         return table;
+    }
+
+    protected static JScrollPane createScrollPane(JTable table) {
+        JScrollPane scrollPane = new JScrollPane(table);
+        scrollPane.setBorder(javax.swing.BorderFactory.createEmptyBorder());
+        return scrollPane;
     }
 
     protected static void alignRight(JTable table, int... columns) {

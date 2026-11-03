@@ -83,7 +83,7 @@ class WaitersPanel extends ScreenPanel {
 
         JPanel content = new JPanel(new BorderLayout(0, 8));
         content.add(toolbar, BorderLayout.NORTH);
-        content.add(new JScrollPane(table), BorderLayout.CENTER);
+        content.add(createScrollPane(table), BorderLayout.CENTER);
 
         JTabbedPane tabs = new JTabbedPane();
         tabs.addTab("Cadastro", content);
@@ -107,7 +107,7 @@ class WaitersPanel extends ScreenPanel {
         alignRight(reportTable, 0, 3, 4, 5, 6, 7, 8);
         JPanel panel = new JPanel(new BorderLayout(0, 8));
         panel.add(filters, BorderLayout.NORTH);
-        panel.add(new JScrollPane(reportTable), BorderLayout.CENTER);
+        panel.add(createScrollPane(reportTable), BorderLayout.CENTER);
         return panel;
     }
 

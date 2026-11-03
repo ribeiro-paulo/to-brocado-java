@@ -22,9 +22,9 @@ import javax.swing.SwingConstants;
 class TablesPanel extends ScreenPanel {
 
     private static final long serialVersionUID = 1L;
-	private static final Color FREE_COLOR = new Color(0xC8E6C9);
-    private static final Color OCCUPIED_COLOR = new Color(0xFFCCBC);
-    private static final Color SELECTED_BORDER_COLOR = new Color(0x0D47A1);
+    private static final Color FREE_COLOR = new Color(0xE8F5E9);
+    private static final Color OCCUPIED_COLOR = new Color(0xFFF0E4);
+    private static final Color SELECTED_BORDER_COLOR = new Color(0xD97706);
 
     private final RestaurantData data;
     private final JPanel grid = new JPanel(new GridLayout(0, 4, 12, 12));
@@ -54,7 +54,6 @@ class TablesPanel extends ScreenPanel {
                 BorderFactory.createEmptyBorder(8, 8, 8, 8)));
         details.setPreferredSize(new Dimension(280, 0));
         details.add(detailsLabel, BorderLayout.CENTER);
-        details.add(occupyButton, BorderLayout.SOUTH);
         JPanel actions = new JPanel(new GridLayout(0, 1, 0, 6));
         actions.add(occupyButton);
         actions.add(newButton);
@@ -88,10 +87,12 @@ class TablesPanel extends ScreenPanel {
         button.setOpaque(true);
         button.setBackground(table.isOccupied() ? OCCUPIED_COLOR : FREE_COLOR);
         button.setPreferredSize(new Dimension(140, 110));
+        button.setFocusPainted(false);
+        button.setFont(button.getFont().deriveFont(14f));
         boolean selected = table == selectedTable;
         button.setBorder(selected
                 ? BorderFactory.createLineBorder(SELECTED_BORDER_COLOR, 4)
-                : BorderFactory.createLineBorder(Color.GRAY, 1));
+                : BorderFactory.createLineBorder(new Color(0xDED8D1), 1));
         button.addActionListener(_ -> {
             selectedTable = table;
             refresh();
