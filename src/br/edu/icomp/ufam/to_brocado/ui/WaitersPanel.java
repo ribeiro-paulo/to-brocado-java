@@ -6,6 +6,7 @@ import java.awt.BorderLayout;
 import java.awt.FlowLayout;
 import java.util.List;
 import javax.swing.JButton;
+import javax.swing.JCheckBox;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
@@ -20,11 +21,12 @@ class WaitersPanel extends ScreenPanel {
 
     private static final long serialVersionUID = 1L;
 	private final RestaurantData data;
-    private final DefaultTableModel model = createModel("Código", "Nome", "Telefone", "Mesas atendidas");
+    private final DefaultTableModel model = createModel("Código", "Nome", "Telefone", "Mesas atendidas", "Situação");
     private final JTable table = createTable(model);
     private final JTextField searchField = new JTextField(20);
     private final JButton editButton = new JButton("Editar");
-    private final JButton removeButton = new JButton("Remover");
+    private final JButton activeButton = new JButton("Inativar");
+    private final JCheckBox showInactiveBox = new JCheckBox("Mostrar inativos");
     private List<Waiter> shownWaiters = List.of();
 
     WaitersPanel(RestaurantData data) {
@@ -51,7 +53,8 @@ class WaitersPanel extends ScreenPanel {
         JButton newButton = new JButton("Novo garçom");
         newButton.addActionListener(_ -> openForm(null));
         editButton.addActionListener(_ -> openForm(getSelectedWaiter()));
-        removeButton.addActionListener(_ -> removeSelectedWaiter());
+        activeButton.addActionListener(_ -> changeSelectedWaiterStatus());
+        showInactiveBox.addActionListener(_ -> refresh());
         table.getSelectionModel().addListSelectionListener(_ -> updateButtons());
         alignRight(table, 0, 3);
         table.getColumnModel().getColumn(0).setMaxWidth(80);
@@ -59,11 +62,12 @@ class WaitersPanel extends ScreenPanel {
         JPanel searchBar = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
         searchBar.add(new JLabel("Buscar por nome:"));
         searchBar.add(searchField);
+        searchBar.add(showInactiveBox);
 
         JPanel actions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
         actions.add(newButton);
         actions.add(editButton);
-        actions.add(removeButton);
+        actions.add(activeButton);
 
         JPanel toolbar = new JPanel(new BorderLayout());
         toolbar.add(searchBar, BorderLayout.WEST);
@@ -81,6 +85,7 @@ class WaitersPanel extends ScreenPanel {
     protected void refresh() {
         String filter = searchField.getText().trim().toLowerCase();
         shownWaiters = data.getWaiters().stream()
+                .filter(waiter -> showInactiveBox.isSelected() || waiter.isActive())
                 .filter(waiter -> waiter.getName().toLowerCase().contains(filter))
                 .toList();
         model.setRowCount(0);
@@ -89,7 +94,8 @@ class WaitersPanel extends ScreenPanel {
                     waiter.getId(),
                     waiter.getName(),
                     formatPhone(waiter.getPhone()),
-                    data.countTablesOf(waiter)
+                    data.countTablesOf(waiter),
+                    waiter.isActive() ? "Ativo" : "Inativo"
             });
         }
         updateButtons();
@@ -103,7 +109,9 @@ class WaitersPanel extends ScreenPanel {
     private void updateButtons() {
         boolean selected = getSelectedWaiter() != null;
         editButton.setEnabled(selected);
-        removeButton.setEnabled(selected);
+        activeButton.setEnabled(selected);
+        Waiter waiter = getSelectedWaiter();
+        activeButton.setText(waiter != null && waiter.isActive() ? "Inativar" : "Reativar");
     }
 
     private void openForm(Waiter waiter) {
@@ -132,20 +140,23 @@ class WaitersPanel extends ScreenPanel {
         refresh();
     }
 
-    private void removeSelectedWaiter() {
+    private void changeSelectedWaiterStatus() {
         Waiter waiter = getSelectedWaiter();
         if (waiter == null) {
             return;
         }
-        if (data.countTablesOf(waiter) > 0) {
-            showMessage("O garçom " + waiter.getName() + " atende mesas ocupadas e não pode ser removido agora.");
+        boolean activate = !waiter.isActive();
+        String action = activate ? "reativar" : "inativar";
+        String buttonLabel = activate ? "Reativar" : "Inativar";
+        if (!confirm("Deseja " + action + " o garçom " + waiter.getName() + "?", buttonLabel)) {
             return;
         }
-        if (!confirm("Deseja remover o garçom " + waiter.getName() + "?", "Remover")) {
-            return;
+        try {
+            data.setWaiterActive(waiter, activate);
+            showStatus("Garçom " + (activate ? "reativado" : "inativado") + " com sucesso.");
+        } catch (IllegalStateException e) {
+            showMessage(e.getMessage());
         }
-        data.removeWaiter(waiter);
-        showStatus("Garçom removido com sucesso.");
         refresh();
     }
 

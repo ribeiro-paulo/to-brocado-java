@@ -157,11 +157,11 @@ class TablesPanel extends ScreenPanel {
     }
 
     private void occupySelectedTable() {
-        if (data.getWaiters().isEmpty()) {
+        if (data.getActiveWaiters().isEmpty()) {
             showMessage("Cadastre ao menos um garçom antes de ocupar uma mesa.");
             return;
         }
-        JComboBox<Waiter> waiterBox = new JComboBox<>(data.getWaiters().toArray(new Waiter[0]));
+        JComboBox<Waiter> waiterBox = new JComboBox<>(data.getActiveWaiters().toArray(new Waiter[0]));
         waiterBox.setSelectedIndex(-1);
         JLabel errorLabel = createErrorLabel();
         JPanel form = buildForm(errorLabel, new String[]{"Garçom responsável:"}, new JComponent[]{waiterBox});
@@ -171,7 +171,7 @@ class TablesPanel extends ScreenPanel {
         if (!confirmed) {
             return;
         }
-        selectedTable.occupy((Waiter) waiterBox.getSelectedItem());
+        data.occupyTable(selectedTable, (Waiter) waiterBox.getSelectedItem());
         showStatus(selectedTable + " ocupada com sucesso.");
         refresh();
     }

@@ -14,6 +14,12 @@ public class OrderItem {
         this.unitPrice = menuItem.getPrice();
     }
 
+    public OrderItem(MenuItem menuItem, int quantity, BigDecimal unitPrice) {
+        this.menuItem = menuItem;
+        this.quantity = quantity;
+        this.unitPrice = unitPrice;
+    }
+
     public MenuItem getMenuItem() {
         return menuItem;
     }

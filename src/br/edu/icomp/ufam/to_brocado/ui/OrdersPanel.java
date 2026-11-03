@@ -182,7 +182,7 @@ class OrdersPanel extends ScreenPanel {
         if (order == null) {
             return;
         }
-        order.advance();
+        data.advanceOrder(order);
         showStatus("Pedido #" + order.getId() + " atualizado para: " + order.getStatus().getLabel() + ".");
         refresh();
     }

@@ -4,6 +4,7 @@ import br.edu.icomp.ufam.to_brocado.data.RestaurantData;
 import br.edu.icomp.ufam.to_brocado.model.Bill;
 import br.edu.icomp.ufam.to_brocado.model.Order;
 import br.edu.icomp.ufam.to_brocado.model.OrderItem;
+import br.edu.icomp.ufam.to_brocado.model.OrderStatus;
 import br.edu.icomp.ufam.to_brocado.model.RestaurantTable;
 import java.awt.BorderLayout;
 import java.awt.Color;
@@ -119,7 +120,8 @@ class BillPanel extends ScreenPanel {
 
     private void updateBill() {
         RestaurantTable table = (RestaurantTable) tableBox.getSelectedItem();
-        List<Order> orders = table == null ? List.of() : data.getOrdersForTable(table);
+        List<Order> orders = table == null ? List.of() : data.getOrdersForTable(table).stream()
+                .filter(order -> order.getStatus() != OrderStatus.CANCELLED).toList();
 
         model.setRowCount(0);
         BigDecimal subtotal = BigDecimal.ZERO;

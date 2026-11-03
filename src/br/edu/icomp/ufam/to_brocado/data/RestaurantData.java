@@ -1,176 +1,45 @@
 package br.edu.icomp.ufam.to_brocado.data;
 
-import br.edu.icomp.ufam.to_brocado.model.MenuCategory;
-import br.edu.icomp.ufam.to_brocado.model.MenuItem;
-import br.edu.icomp.ufam.to_brocado.model.Bill;
-import br.edu.icomp.ufam.to_brocado.model.Order;
-import br.edu.icomp.ufam.to_brocado.model.OrderItem;
-import br.edu.icomp.ufam.to_brocado.model.OrderStatus;
-import br.edu.icomp.ufam.to_brocado.model.RestaurantTable;
-import br.edu.icomp.ufam.to_brocado.model.Waiter;
+import br.edu.icomp.ufam.to_brocado.model.*;
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
+import java.sql.SQLException;
+import java.util.*;
 
 public class RestaurantData {
-
+    private final RestaurantDao dao = new RestaurantDao();
     private final List<Waiter> waiters = new ArrayList<>();
     private final List<RestaurantTable> tables = new ArrayList<>();
     private final List<MenuItem> menuItems = new ArrayList<>();
     private final List<Order> orders = new ArrayList<>();
-    private int nextWaiterId = 1;
-    private int nextMenuItemId = 1;
-    private int nextOrderId = 1;
 
     public RestaurantData() {
-        loadSampleData();
+        try {
+            RestaurantDao.Data data = dao.load();
+            waiters.addAll(data.waiters()); tables.addAll(data.tables()); menuItems.addAll(data.menuItems()); orders.addAll(data.orders());
+        } catch (SQLException e) { throw failure("Não foi possível carregar os dados. Verifique o MySQL e a configuração JDBC.", e); }
     }
-
-    public List<Waiter> getWaiters() {
-        return Collections.unmodifiableList(waiters);
-    }
-
-    public Waiter addWaiter(String name, String phone) {
-        Waiter waiter = new Waiter(nextWaiterId++, name, phone);
-        waiters.add(waiter);
-        return waiter;
-    }
-
-    public void updateWaiter(Waiter waiter, String name, String phone) {
-        if (!waiters.contains(waiter)) throw new IllegalArgumentException("Waiter not found");
-        waiter.update(name, phone);
-    }
-
-    public void removeWaiter(Waiter waiter) {
-        waiters.remove(waiter);
-    }
-
-    public RestaurantTable addTable(int number, int seats) {
-        if (tables.stream().anyMatch(table -> table.getNumber() == number)) throw new IllegalArgumentException("Table number already exists");
-        RestaurantTable table = new RestaurantTable(number, seats);
-        tables.add(table);
-        tables.sort(java.util.Comparator.comparingInt(RestaurantTable::getNumber));
-        return table;
-    }
-
-    public void updateTable(RestaurantTable table, int number, int seats) {
-        if (!tables.contains(table)) throw new IllegalArgumentException("Table not found");
-        if (tables.stream().anyMatch(other -> other != table && other.getNumber() == number)) throw new IllegalArgumentException("Table number already exists");
-        table.update(number, seats);
-        tables.sort(java.util.Comparator.comparingInt(RestaurantTable::getNumber));
-    }
-
-    public void removeTable(RestaurantTable table) {
-        if (table.isOccupied() || orders.stream().anyMatch(order -> order.getTable() == table)) throw new IllegalStateException("Table has active history");
-        tables.remove(table);
-    }
-
-    public long countTablesOf(Waiter waiter) {
-        return tables.stream().filter(table -> table.getWaiter() == waiter).count();
-    }
-
-    public List<RestaurantTable> getTables() {
-        return Collections.unmodifiableList(tables);
-    }
-
-    public List<MenuItem> getMenuItems() {
-        return Collections.unmodifiableList(menuItems);
-    }
-
-    public MenuItem addMenuItem(String name, MenuCategory category, BigDecimal price, boolean available) {
-        MenuItem item = new MenuItem(nextMenuItemId++, name, category, price, available);
-        menuItems.add(item);
-        return item;
-    }
-
-    public void updateMenuItem(MenuItem item, String name, MenuCategory category, BigDecimal price, boolean available) {
-        if (!menuItems.contains(item)) throw new IllegalArgumentException("Menu item not found");
-        item.update(name, category, price, available);
-    }
-
-    public void removeMenuItem(MenuItem item) {
-        if (orders.stream().flatMap(order -> order.getItems().stream()).anyMatch(orderItem -> orderItem.getMenuItem() == item)) {
-            throw new IllegalStateException("Menu item is used by orders");
-        }
-        menuItems.remove(item);
-    }
-
-    public Order addOrder(RestaurantTable table, List<OrderItem> items) {
-        if (!tables.contains(table) || !table.isOccupied()) throw new IllegalArgumentException("An occupied table is required");
-        if (items == null || items.isEmpty()) throw new IllegalArgumentException("Order items are required");
-        Order order = new Order(nextOrderId++, table, OrderStatus.PENDING, LocalDateTime.now(), items);
-        orders.add(order);
-        return order;
-    }
-
-    public void removeOrder(Order order) {
-        orders.remove(order);
-    }
-
-    public List<Order> getOrders() {
-        return Collections.unmodifiableList(orders);
-    }
-
-    public List<Order> getOrdersForTable(RestaurantTable table) {
-        return orders.stream().filter(order -> order.getTable() == table).toList();
-    }
-
-    public boolean hasUndeliveredOrders(RestaurantTable table) {
-        return orders.stream()
-                .anyMatch(order -> order.getTable() == table && !order.getStatus().isFinal());
-    }
-
-    public void closeTable(RestaurantTable table) {
-        orders.removeIf(order -> order.getTable() == table);
-        table.release();
-    }
-
-    public Bill closeAccount(RestaurantTable table, boolean includeService, int people) {
-        if (!tables.contains(table) || !table.isOccupied()) throw new IllegalArgumentException("An occupied table is required");
-        if (hasUndeliveredOrders(table)) throw new IllegalStateException("Undelivered orders remain");
-        BigDecimal subtotal = getOrdersForTable(table).stream().map(Order::getTotal).reduce(BigDecimal.ZERO, BigDecimal::add);
-        Bill bill = new Bill(subtotal, includeService, people);
-        closeTable(table);
-        return bill;
-    }
-
-    private void addOrder(RestaurantTable table, OrderStatus status, int minutesAgo, OrderItem... items) {
-        LocalDateTime createdAt = LocalDateTime.now().minusMinutes(minutesAgo);
-        orders.add(new Order(nextOrderId++, table, status, createdAt, List.of(items)));
-    }
-
-    private void loadSampleData() {
-        Waiter carlos = addWaiter("Carlos Silva", "92991110001");
-        Waiter marina = addWaiter("Marina Souza", "92991110002");
-        Waiter joao = addWaiter("João Pereira", "92991110003");
-
-        int[] seatsPerTable = {2, 2, 4, 4, 4, 6, 6, 8};
-        for (int i = 0; i < seatsPerTable.length; i++) {
-            tables.add(new RestaurantTable(i + 1, seatsPerTable[i]));
-        }
-        tables.get(0).occupy(carlos);
-        tables.get(2).occupy(marina);
-        tables.get(3).occupy(joao);
-        tables.get(5).occupy(carlos);
-
-        MenuItem burger = addMenuItem("X-Burger", MenuCategory.SNACKS, new BigDecimal("22.00"), true);
-        MenuItem salad = addMenuItem("X-Salada", MenuCategory.SNACKS, new BigDecimal("24.00"), true);
-        MenuItem bacon = addMenuItem("X-Bacon", MenuCategory.SNACKS, new BigDecimal("27.50"), true);
-        MenuItem fries = addMenuItem("Batata frita", MenuCategory.SIDES, new BigDecimal("18.00"), true);
-        MenuItem onionRings = addMenuItem("Anéis de cebola", MenuCategory.SIDES, new BigDecimal("20.00"), true);
-        MenuItem soda = addMenuItem("Refrigerante", MenuCategory.DRINKS, new BigDecimal("7.00"), true);
-        MenuItem juice = addMenuItem("Suco natural", MenuCategory.DRINKS, new BigDecimal("9.00"), true);
-        addMenuItem("Água mineral", MenuCategory.DRINKS, new BigDecimal("4.00"), true);
-        addMenuItem("Pudim", MenuCategory.DESSERTS, new BigDecimal("12.00"), true);
-        addMenuItem("Milkshake", MenuCategory.DESSERTS, new BigDecimal("16.00"), false);
-
-        addOrder(tables.get(0), OrderStatus.DELIVERED, 40, new OrderItem(burger, 2), new OrderItem(soda, 2));
-        addOrder(tables.get(0), OrderStatus.PREPARING, 18, new OrderItem(fries, 1));
-        addOrder(tables.get(2), OrderStatus.PENDING, 4, new OrderItem(salad, 1), new OrderItem(juice, 1));
-        addOrder(tables.get(3), OrderStatus.PENDING, 20, new OrderItem(bacon, 2), new OrderItem(juice, 2));
-        addOrder(tables.get(5), OrderStatus.READY, 8, new OrderItem(onionRings, 1), new OrderItem(soda, 3));
-        addOrder(tables.get(2), OrderStatus.DELIVERED, 25, new OrderItem(soda, 2));
-    }
+    public List<Waiter> getWaiters() { return Collections.unmodifiableList(waiters); }
+    public List<Waiter> getActiveWaiters() { return waiters.stream().filter(Waiter::isActive).toList(); }
+    public Waiter addWaiter(String name,String phone){try{Waiter w=new Waiter(dao.insertWaiter(name,phone),name,phone);waiters.add(w);return w;}catch(SQLException e){throw failure("Não foi possível cadastrar o garçom.",e);}}
+    public void updateWaiter(Waiter w,String name,String phone){try{dao.updateWaiter(w,name,phone);w.update(name,phone);}catch(SQLException e){throw failure("Não foi possível atualizar o garçom.",e);}}
+    public void setWaiterActive(Waiter w, boolean active){if(!active&&countTablesOf(w)>0)throw new IllegalStateException("O garçom atende mesas ocupadas e não pode ser inativado agora.");try{dao.setWaiterActive(w,active);w.setActive(active);}catch(SQLException e){throw failure("Não foi possível atualizar a situação do garçom.",e);}}
+    public RestaurantTable addTable(int number,int seats){try{RestaurantTable t=new RestaurantTable(dao.insertTable(number,seats),number,seats);tables.add(t);sortTables();return t;}catch(SQLException e){throw failure("Não foi possível cadastrar a mesa.",e);}}
+    public void updateTable(RestaurantTable t,int number,int seats){try{dao.updateTable(t,number,seats);t.update(number,seats);sortTables();}catch(SQLException e){throw failure("Não foi possível atualizar a mesa.",e);}}
+    public void removeTable(RestaurantTable t){try{dao.deleteTable(t);tables.remove(t);}catch(SQLException e){throw failure("Não foi possível remover a mesa. Ela possui histórico associado.",e);}}
+    public long countTablesOf(Waiter w){return tables.stream().filter(t->t.getWaiter()!=null&&t.getWaiter().getId()==w.getId()).count();}
+    public List<RestaurantTable> getTables(){return Collections.unmodifiableList(tables);}
+    public List<MenuItem> getMenuItems(){return Collections.unmodifiableList(menuItems);}
+    public MenuItem addMenuItem(String name,MenuCategory category,BigDecimal price,boolean available){try{MenuItem i=new MenuItem(dao.insertMenuItem(name,category,price,available),name,category,price,available);menuItems.add(i);return i;}catch(SQLException e){throw failure("Não foi possível cadastrar o item.",e);}}
+    public void updateMenuItem(MenuItem i,String name,MenuCategory category,BigDecimal price,boolean available){try{dao.updateMenuItem(i,name,category,price,available);i.update(name,category,price,available);}catch(SQLException e){throw failure("Não foi possível atualizar o item.",e);}}
+    public void removeMenuItem(MenuItem i){try{dao.deleteMenuItem(i);menuItems.remove(i);}catch(SQLException e){throw failure("O item não pode ser removido porque já está em pedidos.",e);}}
+    public Order addOrder(RestaurantTable t,List<OrderItem> items){if(t==null||!t.isOccupied())throw new IllegalArgumentException("Uma mesa ocupada é necessária.");if(items==null||items.isEmpty())throw new IllegalArgumentException("Adicione itens ao pedido.");try{Order o=new Order(dao.insertOrder(t,items),t,OrderStatus.PENDING,java.time.LocalDateTime.now(),items);orders.add(o);return o;}catch(SQLException e){throw failure("Não foi possível registrar o pedido.",e);}}
+    public void removeOrder(Order o){try{dao.cancelOrder(o);o.setStatus(OrderStatus.CANCELLED);}catch(SQLException e){throw failure("Não foi possível cancelar o pedido.",e);}}
+    public void advanceOrder(Order o){OrderStatus old=o.getStatus();o.advance();try{dao.updateOrder(o);}catch(SQLException e){o.setStatus(old);throw failure("Não foi possível atualizar o pedido.",e);}}
+    public List<Order> getOrders(){return Collections.unmodifiableList(orders);}
+    public List<Order> getOrdersForTable(RestaurantTable t){return orders.stream().filter(o->o.getTable().getId()==t.getId()).toList();}
+    public boolean hasUndeliveredOrders(RestaurantTable t){return getOrdersForTable(t).stream().anyMatch(o->!o.getStatus().isFinal());}
+    public void occupyTable(RestaurantTable t,Waiter w){if(w==null||!w.isActive())throw new IllegalArgumentException("Selecione um garçom ativo.");try{dao.setTableWaiter(t,w);t.occupy(w);}catch(SQLException e){throw failure("Não foi possível ocupar a mesa.",e);}}
+    public Bill closeAccount(RestaurantTable t,boolean includeService,int people){if(t==null||!t.isOccupied())throw new IllegalArgumentException("Uma mesa ocupada é necessária.");if(hasUndeliveredOrders(t))throw new IllegalStateException("Há pedidos não entregues.");BigDecimal subtotal=getOrdersForTable(t).stream().filter(o->o.getStatus()==OrderStatus.DELIVERED).map(Order::getTotal).reduce(BigDecimal.ZERO,BigDecimal::add);Bill bill=new Bill(subtotal,includeService,people);try{dao.closeAccount(t,includeService,people);t.release();return bill;}catch(SQLException e){throw failure("Não foi possível fechar a conta.",e);}}
+    private void sortTables(){tables.sort(Comparator.comparingInt(RestaurantTable::getNumber));}
+    private static IllegalStateException failure(String message,SQLException cause){return new IllegalStateException(message+" Detalhe: "+cause.getMessage(),cause);}
 }

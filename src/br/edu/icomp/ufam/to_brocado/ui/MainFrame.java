@@ -47,7 +47,7 @@ public class MainFrame extends JFrame {
         brand.setFont(brand.getFont().deriveFont(Font.BOLD, 20f));
 
         JLabel memoryNotice = new JLabel(
-                "<html>Os dados ficam apenas em memória e são perdidos ao fechar o aplicativo.</html>");
+                "<html>Dados persistidos no MySQL<br>Schema: to_brocado</html>");
         memoryNotice.setFont(memoryNotice.getFont().deriveFont(Font.PLAIN, 11f));
 
         JPanel navigation = new JPanel(new BorderLayout(0, 16));

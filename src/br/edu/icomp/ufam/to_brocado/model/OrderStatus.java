@@ -5,7 +5,8 @@ public enum OrderStatus {
     PENDING("Pendente"),
     PREPARING("Em preparo"),
     READY("Pronto"),
-    DELIVERED("Entregue");
+    DELIVERED("Entregue"),
+    CANCELLED("Cancelado");
 
     private final String label;
 
@@ -22,11 +23,11 @@ public enum OrderStatus {
     }
 
     public boolean isFinal() {
-        return this == DELIVERED;
+        return this == DELIVERED || this == CANCELLED;
     }
 
     public OrderStatus next() {
         OrderStatus[] all = values();
-        return all[Math.min(ordinal() + 1, all.length - 1)];
+        return this == CANCELLED ? this : all[Math.min(ordinal() + 1, 3)];
     }
 }
